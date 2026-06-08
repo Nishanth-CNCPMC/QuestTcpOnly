@@ -4,9 +4,10 @@ using UnityEngine;
 
 public class QuestHud : MonoBehaviour
 {
-    public Vector3 localPosition = new Vector3(-0.55f, 0.28f, 1.15f);
-    public float characterSize = 0.018f;
-    public int fontSize = 48;
+    public Vector3 localPosition = new Vector3(-1.18f, 0.78f, 1.85f);
+    public float characterSize = 0.012f;
+    public int fontSize = 40;
+    public Color textColor = new Color(0.85f, 0.92f, 1.0f, 1.0f);
 
     private TextMesh textMesh;
     private Transform currentCamera;
@@ -69,11 +70,11 @@ public class QuestHud : MonoBehaviour
 
         GameObject hudObject = new GameObject("Quest Debug HUD");
         textMesh = hudObject.AddComponent<TextMesh>();
-        textMesh.anchor = TextAnchor.UpperLeft;
-        textMesh.alignment = TextAlignment.Left;
+        textMesh.anchor = TextAnchor.UpperRight;
+        textMesh.alignment = TextAlignment.Right;
         textMesh.fontSize = fontSize;
         textMesh.characterSize = characterSize;
-        textMesh.color = Color.green;
+        textMesh.color = textColor;
 
         AttachToCamera();
     }

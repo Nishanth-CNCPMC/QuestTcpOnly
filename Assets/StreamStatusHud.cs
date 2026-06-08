@@ -3,10 +3,10 @@ using UnityEngine;
 
 public class StreamStatusHud : MonoBehaviour
 {
-    public Vector3 localPosition = new Vector3(-0.78f, -0.56f, 1.75f);
-    public float characterSize = 0.018f;
-    public int fontSize = 48;
-    public Color connectedColor = new Color(0.2f, 1.0f, 0.35f, 1.0f);
+    public Vector3 localPosition = new Vector3(1.18f, 0.78f, 1.85f);
+    public float characterSize = 0.012f;
+    public int fontSize = 40;
+    public Color connectedColor = new Color(0.85f, 0.92f, 1.0f, 1.0f);
     public Color warningColor = new Color(1.0f, 0.75f, 0.2f, 1.0f);
     public Color errorColor = new Color(1.0f, 0.25f, 0.25f, 1.0f);
 

@@ -1,10 +1,11 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class StreamPanelManager : MonoBehaviour
 {
-    public Vector3 localPosition = new Vector3(0.0f, 0.0f, 1.8f);
-    public float panelWidthMeters = 1.6f;
-    public float panelHeightMeters = 0.9f;
+    public Vector3 localPosition = new Vector3(0.0f, 0.0f, 2.05f);
+    public float panelWidthMeters = 2.2f;
+    public float panelHeightMeters = 1.2375f;
     public Color placeholderColor = new Color(0.04f, 0.04f, 0.04f, 1.0f);
 
     private const string BootstrapName = "Quest2Skill WebRTC Stream Layer";
@@ -64,6 +65,7 @@ public class StreamPanelManager : MonoBehaviour
 
         panelRenderer = panel.GetComponent<Renderer>();
         panelMaterial = new Material(FindUnlitShader());
+        ConfigurePanelMaterial();
         SetMaterialColor(placeholderColor);
         panelRenderer.sharedMaterial = panelMaterial;
 
@@ -174,6 +176,24 @@ public class StreamPanelManager : MonoBehaviour
         if (panelMaterial.HasProperty("_MainTex"))
         {
             panelMaterial.SetTexture("_MainTex", texture);
+        }
+    }
+
+    private void ConfigurePanelMaterial()
+    {
+        if (panelMaterial == null)
+        {
+            return;
+        }
+
+        if (panelMaterial.HasProperty("_Cull"))
+        {
+            panelMaterial.SetFloat("_Cull", (float)CullMode.Off);
+        }
+
+        if (panelMaterial.HasProperty("_Surface"))
+        {
+            panelMaterial.SetFloat("_Surface", 0.0f);
         }
     }
 }
