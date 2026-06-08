@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class QuestTcpClient : MonoBehaviour
 {
-    public string host = "127.0.0.1";
+    public string host = "10.42.0.1";
     public int port = 5005;
     public float reconnectInterval = 1.0f;
 
