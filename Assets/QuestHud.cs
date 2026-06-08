@@ -1,16 +1,15 @@
-using System.Globalization;
-using System.Text;
 using UnityEngine;
 
 public class QuestHud : MonoBehaviour
 {
-    public Vector3 localPosition = new Vector3(-1.18f, 0.78f, 1.85f);
-    public float characterSize = 0.012f;
-    public int fontSize = 40;
+    public Vector3 fallbackLocalPosition = new Vector3(-0.55f, 0.42f, 1.6f);
+    public float characterSize = 0.0085f;
+    public int fontSize = 32;
     public Color textColor = new Color(0.85f, 0.92f, 1.0f, 1.0f);
+    public Color disconnectedColor = new Color(1.0f, 0.65f, 0.25f, 1.0f);
 
     private TextMesh textMesh;
-    private Transform currentCamera;
+    private Transform currentParent;
 
     private void Awake()
     {
@@ -33,32 +32,8 @@ public class QuestHud : MonoBehaviour
         bool recording)
     {
         EnsureTextMesh();
-
-        StringBuilder builder = new StringBuilder();
-        builder.Append("TCP: ");
-        builder.AppendLine(tcpConnected ? "connected" : "disconnected");
-        builder.Append("Right controller: ");
-        builder.AppendLine(controllerDetected ? "detected" : "not detected");
-        builder.Append("Calibration: ");
-        builder.AppendLine(originSet ? "origin set" : "origin not set");
-        builder.AppendLine(instruction);
-
-        if (hasRelativePose)
-        {
-            builder.Append("Rel pos: x=");
-            builder.Append(Format(relativePosition.x));
-            builder.Append(" y=");
-            builder.Append(Format(relativePosition.y));
-            builder.Append(" z=");
-            builder.AppendLine(Format(relativePosition.z));
-        }
-
-        builder.Append("Trigger: ");
-        builder.AppendLine(Format(trigger));
-        builder.Append("Recording: ");
-        builder.Append(recording ? "recording" : "not recording");
-
-        textMesh.text = builder.ToString();
+        textMesh.color = tcpConnected ? textColor : disconnectedColor;
+        textMesh.text = tcpConnected ? "TCP OK" : "TCP OFF";
     }
 
     private void EnsureTextMesh()
@@ -70,8 +45,8 @@ public class QuestHud : MonoBehaviour
 
         GameObject hudObject = new GameObject("Quest Debug HUD");
         textMesh = hudObject.AddComponent<TextMesh>();
-        textMesh.anchor = TextAnchor.UpperRight;
-        textMesh.alignment = TextAlignment.Right;
+        textMesh.anchor = TextAnchor.MiddleLeft;
+        textMesh.alignment = TextAlignment.Left;
         textMesh.fontSize = fontSize;
         textMesh.characterSize = characterSize;
         textMesh.color = textColor;
@@ -81,21 +56,39 @@ public class QuestHud : MonoBehaviour
 
     private void AttachToCamera()
     {
-        Camera camera = Camera.main;
-        if (camera == null || camera.transform == currentCamera || textMesh == null)
+        if (textMesh == null)
         {
             return;
         }
 
-        currentCamera = camera.transform;
-        textMesh.transform.SetParent(currentCamera, false);
-        textMesh.transform.localPosition = localPosition;
+        Transform target = FindStatusAnchor();
+        bool usingStatusBar = target != null;
+
+        if (target == null)
+        {
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                return;
+            }
+
+            target = camera.transform;
+        }
+
+        if (target != currentParent)
+        {
+            currentParent = target;
+            textMesh.transform.SetParent(currentParent, false);
+        }
+
+        textMesh.transform.localPosition = usingStatusBar ? Vector3.zero : fallbackLocalPosition;
         textMesh.transform.localRotation = Quaternion.identity;
         textMesh.transform.localScale = Vector3.one;
     }
 
-    private static string Format(float value)
+    private static Transform FindStatusAnchor()
     {
-        return value.ToString("F4", CultureInfo.InvariantCulture);
+        GameObject anchor = GameObject.Find(StreamPanelManager.StatusLeftAnchorName);
+        return anchor != null ? anchor.transform : null;
     }
 }

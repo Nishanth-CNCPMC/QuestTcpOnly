@@ -1,18 +1,17 @@
-using System.Text;
 using UnityEngine;
 
 public class StreamStatusHud : MonoBehaviour
 {
-    public Vector3 localPosition = new Vector3(1.18f, 0.78f, 1.85f);
-    public float characterSize = 0.012f;
-    public int fontSize = 40;
+    public Vector3 fallbackLocalPosition = new Vector3(0.55f, 0.42f, 1.6f);
+    public float characterSize = 0.0085f;
+    public int fontSize = 32;
     public Color connectedColor = new Color(0.85f, 0.92f, 1.0f, 1.0f);
     public Color warningColor = new Color(1.0f, 0.75f, 0.2f, 1.0f);
     public Color errorColor = new Color(1.0f, 0.25f, 0.25f, 1.0f);
 
     private WebRTCStreamReceiver receiver;
     private TextMesh textMesh;
-    private Transform currentCamera;
+    private Transform currentParent;
 
     private void Awake()
     {
@@ -35,8 +34,8 @@ public class StreamStatusHud : MonoBehaviour
 
         GameObject hudObject = new GameObject("WebRTC Stream Status HUD");
         textMesh = hudObject.AddComponent<TextMesh>();
-        textMesh.anchor = TextAnchor.UpperLeft;
-        textMesh.alignment = TextAlignment.Left;
+        textMesh.anchor = TextAnchor.MiddleRight;
+        textMesh.alignment = TextAlignment.Right;
         textMesh.fontSize = fontSize;
         textMesh.characterSize = characterSize;
         textMesh.color = warningColor;
@@ -46,19 +45,32 @@ public class StreamStatusHud : MonoBehaviour
 
     private void AttachToCamera()
     {
-        Camera camera = Camera.main;
-        if (camera == null || textMesh == null)
+        if (textMesh == null)
         {
             return;
         }
 
-        if (currentCamera != camera.transform)
+        Transform target = FindStatusAnchor();
+        bool usingStatusBar = target != null;
+
+        if (target == null)
         {
-            currentCamera = camera.transform;
-            textMesh.transform.SetParent(currentCamera, false);
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                return;
+            }
+
+            target = camera.transform;
         }
 
-        textMesh.transform.localPosition = localPosition;
+        if (target != currentParent)
+        {
+            currentParent = target;
+            textMesh.transform.SetParent(currentParent, false);
+        }
+
+        textMesh.transform.localPosition = usingStatusBar ? Vector3.zero : fallbackLocalPosition;
         textMesh.transform.localRotation = Quaternion.identity;
         textMesh.transform.localScale = Vector3.one;
     }
@@ -71,25 +83,7 @@ public class StreamStatusHud : MonoBehaviour
         }
 
         textMesh.color = GetStateColor(receiver.State);
-
-        StringBuilder builder = new StringBuilder();
-        builder.Append("Stream: ");
-        builder.AppendLine(receiver.StreamUrl);
-        builder.Append("State: ");
-        builder.AppendLine(GetStateLabel(receiver.State));
-
-        if (receiver.State == StreamReceiverState.ConnectedNoVideoTrack)
-        {
-            builder.AppendLine(receiver.HasVideoTrack ? "Waiting for first video frame." : "Connected but no video track.");
-        }
-
-        if (!string.IsNullOrEmpty(receiver.LastError))
-        {
-            builder.Append("Error: ");
-            builder.AppendLine(receiver.LastError);
-        }
-
-        textMesh.text = builder.ToString();
+        textMesh.text = BuildStatusText();
     }
 
     private Color GetStateColor(StreamReceiverState state)
@@ -112,19 +106,54 @@ public class StreamStatusHud : MonoBehaviour
         switch (state)
         {
             case StreamReceiverState.Idle:
-                return "idle";
+                return "STREAM IDLE";
             case StreamReceiverState.Connecting:
-                return "connecting";
+                return "STREAM CONNECTING";
             case StreamReceiverState.Connected:
-                return "connected";
+                return "STREAM OK";
             case StreamReceiverState.ConnectedNoVideoTrack:
-                return "connected, waiting for video";
+                return "STREAM NO VIDEO";
             case StreamReceiverState.Failed:
-                return "failed";
+                return "STREAM FAILED";
             case StreamReceiverState.Disconnected:
-                return "disconnected";
+                return "STREAM OFF";
             default:
                 return state.ToString();
         }
+    }
+
+    private string BuildStatusText()
+    {
+        string label = GetStateLabel(receiver.State);
+
+        if (receiver.State != StreamReceiverState.Failed
+            && receiver.State != StreamReceiverState.Disconnected
+            && receiver.State != StreamReceiverState.ConnectedNoVideoTrack)
+        {
+            return label;
+        }
+
+        if (string.IsNullOrWhiteSpace(receiver.LastError))
+        {
+            return label;
+        }
+
+        return label + ": " + Shorten(receiver.LastError, 58);
+    }
+
+    private static string Shorten(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return value.Substring(0, maxLength - 3) + "...";
+    }
+
+    private static Transform FindStatusAnchor()
+    {
+        GameObject anchor = GameObject.Find(StreamPanelManager.StatusRightAnchorName);
+        return anchor != null ? anchor.transform : null;
     }
 }

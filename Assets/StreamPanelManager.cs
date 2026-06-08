@@ -3,16 +3,26 @@ using UnityEngine.Rendering;
 
 public class StreamPanelManager : MonoBehaviour
 {
+    public const string StatusLeftAnchorName = "Quest2Skill Stream Status Left";
+    public const string StatusRightAnchorName = "Quest2Skill Stream Status Right";
+
     public Vector3 localPosition = new Vector3(0.0f, 0.0f, 2.05f);
     public float panelWidthMeters = 2.2f;
     public float panelHeightMeters = 1.2375f;
+    public float statusBarHeightMeters = 0.085f;
+    public float statusBarPaddingMeters = 0.04f;
     public Color placeholderColor = new Color(0.04f, 0.04f, 0.04f, 1.0f);
+    public Color statusBarColor = new Color(0.015f, 0.018f, 0.022f, 1.0f);
 
     private const string BootstrapName = "Quest2Skill WebRTC Stream Layer";
 
     private WebRTCStreamReceiver receiver;
     private Renderer panelRenderer;
     private Material panelMaterial;
+    private Transform statusBarTransform;
+    private Transform statusLeftAnchor;
+    private Transform statusRightAnchor;
+    private Material statusBarMaterial;
     private Texture appliedTexture;
     private Transform currentCamera;
 
@@ -39,11 +49,13 @@ public class StreamPanelManager : MonoBehaviour
         }
 
         EnsurePanel();
+        EnsureStatusBar();
     }
 
     private void LateUpdate()
     {
         AttachToCamera();
+        LayoutStatusBar();
         ApplyReceiverTexture();
     }
 
@@ -65,7 +77,7 @@ public class StreamPanelManager : MonoBehaviour
 
         panelRenderer = panel.GetComponent<Renderer>();
         panelMaterial = new Material(FindUnlitShader());
-        ConfigurePanelMaterial();
+        ConfigurePanelMaterial(panelMaterial);
         SetMaterialColor(placeholderColor);
         panelRenderer.sharedMaterial = panelMaterial;
 
@@ -75,6 +87,73 @@ public class StreamPanelManager : MonoBehaviour
         panel.transform.localScale = new Vector3(panelWidthMeters, panelHeightMeters, 1.0f);
 
         AttachToCamera();
+    }
+
+    private void EnsureStatusBar()
+    {
+        if (statusBarTransform != null)
+        {
+            return;
+        }
+
+        GameObject statusBar = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        statusBar.name = "Quest2Skill Stream Status Bar";
+
+        Collider statusCollider = statusBar.GetComponent<Collider>();
+        if (statusCollider != null)
+        {
+            Destroy(statusCollider);
+        }
+
+        Renderer statusRenderer = statusBar.GetComponent<Renderer>();
+        statusBarMaterial = new Material(FindUnlitShader());
+        ConfigurePanelMaterial(statusBarMaterial);
+        SetMaterialColor(statusBarMaterial, statusBarColor);
+        statusRenderer.sharedMaterial = statusBarMaterial;
+
+        statusBarTransform = statusBar.transform;
+        statusBarTransform.SetParent(transform, false);
+
+        statusLeftAnchor = new GameObject(StatusLeftAnchorName).transform;
+        statusLeftAnchor.SetParent(transform, false);
+
+        statusRightAnchor = new GameObject(StatusRightAnchorName).transform;
+        statusRightAnchor.SetParent(transform, false);
+
+        LayoutStatusBar();
+    }
+
+    private void LayoutStatusBar()
+    {
+        if (statusBarTransform == null)
+        {
+            return;
+        }
+
+        float y = (panelHeightMeters * 0.5f) - (statusBarHeightMeters * 0.5f);
+        statusBarTransform.localPosition = new Vector3(0.0f, y, -0.012f);
+        statusBarTransform.localRotation = Quaternion.identity;
+        statusBarTransform.localScale = new Vector3(panelWidthMeters, statusBarHeightMeters, 1.0f);
+
+        if (statusLeftAnchor != null)
+        {
+            statusLeftAnchor.localPosition = new Vector3(
+                (-panelWidthMeters * 0.5f) + statusBarPaddingMeters,
+                y,
+                -0.025f);
+            statusLeftAnchor.localRotation = Quaternion.identity;
+            statusLeftAnchor.localScale = Vector3.one;
+        }
+
+        if (statusRightAnchor != null)
+        {
+            statusRightAnchor.localPosition = new Vector3(
+                (panelWidthMeters * 0.5f) - statusBarPaddingMeters,
+                y,
+                -0.025f);
+            statusRightAnchor.localRotation = Quaternion.identity;
+            statusRightAnchor.localScale = Vector3.one;
+        }
     }
 
     private void AttachToCamera()
@@ -145,19 +224,24 @@ public class StreamPanelManager : MonoBehaviour
 
     private void SetMaterialColor(Color color)
     {
-        if (panelMaterial == null)
+        SetMaterialColor(panelMaterial, color);
+    }
+
+    private static void SetMaterialColor(Material material, Color color)
+    {
+        if (material == null)
         {
             return;
         }
 
-        if (panelMaterial.HasProperty("_BaseColor"))
+        if (material.HasProperty("_BaseColor"))
         {
-            panelMaterial.SetColor("_BaseColor", color);
+            material.SetColor("_BaseColor", color);
         }
 
-        if (panelMaterial.HasProperty("_Color"))
+        if (material.HasProperty("_Color"))
         {
-            panelMaterial.color = color;
+            material.color = color;
         }
     }
 
@@ -179,21 +263,21 @@ public class StreamPanelManager : MonoBehaviour
         }
     }
 
-    private void ConfigurePanelMaterial()
+    private static void ConfigurePanelMaterial(Material material)
     {
-        if (panelMaterial == null)
+        if (material == null)
         {
             return;
         }
 
-        if (panelMaterial.HasProperty("_Cull"))
+        if (material.HasProperty("_Cull"))
         {
-            panelMaterial.SetFloat("_Cull", (float)CullMode.Off);
+            material.SetFloat("_Cull", (float)CullMode.Off);
         }
 
-        if (panelMaterial.HasProperty("_Surface"))
+        if (material.HasProperty("_Surface"))
         {
-            panelMaterial.SetFloat("_Surface", 0.0f);
+            material.SetFloat("_Surface", 0.0f);
         }
     }
 }
