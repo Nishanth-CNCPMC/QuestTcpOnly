@@ -14,6 +14,7 @@
 *.apk
 *.aab
 *.unitypackage
+mono_crash.mem.*.blob
 
 .vscode/
 .idea/

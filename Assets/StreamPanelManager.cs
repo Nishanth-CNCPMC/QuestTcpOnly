@@ -207,7 +207,13 @@ public class StreamPanelManager : MonoBehaviour
 
     private static Shader FindUnlitShader()
     {
-        Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+        Shader shader = Resources.Load<Shader>("Quest2SkillUnlitTexture");
+        if (shader != null)
+        {
+            return shader;
+        }
+
+        shader = Shader.Find("Universal Render Pipeline/Unlit");
         if (shader != null)
         {
             return shader;

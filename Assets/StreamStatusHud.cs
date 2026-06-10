@@ -130,7 +130,7 @@ public class StreamStatusHud : MonoBehaviour
             && receiver.State != StreamReceiverState.Disconnected
             && receiver.State != StreamReceiverState.ConnectedNoVideoTrack)
         {
-            return label;
+            return label + " " + BuildRenderText();
         }
 
         if (string.IsNullOrWhiteSpace(receiver.LastError))
@@ -138,7 +138,14 @@ public class StreamStatusHud : MonoBehaviour
             return label;
         }
 
-        return label + ": " + Shorten(receiver.LastError, 58);
+        return label + " " + BuildRenderText() + ": " + Shorten(receiver.LastError, 58);
+    }
+
+    private string BuildRenderText()
+    {
+        Texture texture = receiver.ReceivedTexture;
+        string textureText = texture == null ? "--" : texture.width + "x" + texture.height;
+        return textureText + " " + SystemInfo.graphicsDeviceType;
     }
 
     private static string Shorten(string value, int maxLength)

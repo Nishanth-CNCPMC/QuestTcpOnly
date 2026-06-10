@@ -23,6 +23,7 @@ public class WebRTCStreamReceiver : MonoBehaviour
     public bool connectOnStart = true;
     public bool retryOnFailure = true;
     public float retryInterval = 5.0f;
+    public bool preferHighQualitySampling = true;
 
     private RTCPeerConnection peerConnection;
     private VideoStreamTrack videoTrack;
@@ -271,6 +272,12 @@ public class WebRTCStreamReceiver : MonoBehaviour
         if (texture == null)
         {
             return;
+        }
+
+        if (preferHighQualitySampling)
+        {
+            texture.filterMode = FilterMode.Bilinear;
+            texture.anisoLevel = 1;
         }
 
         receivedTexture = texture;
