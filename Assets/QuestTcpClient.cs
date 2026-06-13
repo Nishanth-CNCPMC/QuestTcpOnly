@@ -12,8 +12,11 @@ public class QuestTcpClient : MonoBehaviour
     private TcpClient client;
     private NetworkStream stream;
     private float lastReconnectAttempt;
+    private readonly byte[] receiveBuffer = new byte[4096];
+    private readonly StringBuilder incomingText = new StringBuilder();
 
     public bool IsConnected => client != null && stream != null && client.Connected;
+    public event Action<string> LineReceived;
 
     private void Start()
     {
@@ -24,6 +27,7 @@ public class QuestTcpClient : MonoBehaviour
     {
         if (IsConnected)
         {
+            ReadIncomingLines();
             return;
         }
 
@@ -31,6 +35,51 @@ public class QuestTcpClient : MonoBehaviour
         {
             TryConnect();
         }
+    }
+
+    private void ReadIncomingLines()
+    {
+        try
+        {
+            while (stream != null && stream.DataAvailable)
+            {
+                int count = stream.Read(receiveBuffer, 0, receiveBuffer.Length);
+                if (count <= 0)
+                {
+                    Close();
+                    return;
+                }
+
+                incomingText.Append(Encoding.UTF8.GetString(receiveBuffer, 0, count));
+            }
+
+            DispatchIncomingLines();
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("TCP receive failed: " + e.Message);
+            Close();
+        }
+    }
+
+    private void DispatchIncomingLines()
+    {
+        string text = incomingText.ToString();
+        int newlineIndex = text.IndexOf('\n');
+        while (newlineIndex >= 0)
+        {
+            string line = text.Substring(0, newlineIndex).Trim();
+            text = text.Substring(newlineIndex + 1);
+            if (!string.IsNullOrEmpty(line))
+            {
+                LineReceived?.Invoke(line);
+            }
+
+            newlineIndex = text.IndexOf('\n');
+        }
+
+        incomingText.Length = 0;
+        incomingText.Append(text);
     }
 
     public bool SendLine(string message)
@@ -90,6 +139,8 @@ public class QuestTcpClient : MonoBehaviour
 
     private void Close()
     {
+        incomingText.Length = 0;
+
         if (stream != null)
         {
             stream.Close();

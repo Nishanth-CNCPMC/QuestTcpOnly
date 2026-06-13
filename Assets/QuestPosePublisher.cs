@@ -5,22 +5,46 @@ public class QuestPosePublisher : MonoBehaviour
 {
     public float sendInterval = 0.05f;
     public bool recording;
+    public bool rosTopicEnable = true;
+    public float panelAdjustSpeedMetersPerSecond = 0.75f;
+    public float panelMinDistanceMeters = 0.6f;
+    public float panelMaxDistanceMeters = 5.0f;
 
     private QuestInputReader inputReader;
     private QuestHud hud;
+    private QuestSettingsDialog settingsDialog;
+    private StreamPanelManager streamPanel;
     private QuestTcpClient tcpClient;
+    private QuestHapticCommandReceiver hapticCommandReceiver;
     private float lastSendTime;
+    private bool previousLeftMenuButton;
+    private bool previousRightPrimaryButton;
+    private bool previousRightSecondaryButton;
+    private bool previousRightTriggerButton;
+    private bool settingsOpen;
+    private bool adjustingStreamPanel;
+    private int selectedSettingsOption;
+    private Vector3 originalPanelLocalPosition;
+
+    private const int AdjustPanelOption = 0;
+    private const int SaveOption = 1;
+    private const int DiscardOption = 2;
+    private const int SettingsOptionCount = 3;
 
     protected virtual void Start()
     {
         inputReader = EnsureComponent<QuestInputReader>();
         hud = EnsureComponent<QuestHud>();
+        settingsDialog = EnsureComponent<QuestSettingsDialog>();
         tcpClient = EnsureComponent<QuestTcpClient>();
+        hapticCommandReceiver = EnsureComponent<QuestHapticCommandReceiver>();
+        settingsDialog.SetVisible(false);
     }
 
     protected virtual void Update()
     {
         inputReader.ReadInput();
+        UpdateSettingsInput();
 
         bool appActive = inputReader.Head.detected && inputReader.Head.hasPose;
         bool rightReady = inputReader.Right.detected && inputReader.Right.hasPose;
@@ -34,7 +58,8 @@ public class QuestPosePublisher : MonoBehaviour
             rightReady,
             inputReader.Right.position,
             inputReader.Right.trigger,
-            recording);
+            recording,
+            rosTopicEnable);
 
         if (Time.time - lastSendTime < sendInterval)
         {
@@ -70,6 +95,7 @@ public class QuestPosePublisher : MonoBehaviour
         string deviceJson = BuildAllDevicesJson();
         string prefix = "{"
             + "\"app_active\":" + B(appActive) + ","
+            + "\"ros_topic_enable\":" + B(rosTopicEnable) + ","
             + "\"head_detected\":" + B(inputReader.Head.detected) + ","
             + "\"right_detected\":" + B(inputReader.Right.detected) + ","
             + "\"left_detected\":" + B(inputReader.Left.detected) + ","
@@ -142,6 +168,168 @@ public class QuestPosePublisher : MonoBehaviour
         }
 
         return json + "}";
+    }
+
+    private void UpdateSettingsInput()
+    {
+        bool leftMenuDown = inputReader.Left.detected
+            && inputReader.Left.menuButton
+            && !previousLeftMenuButton;
+        bool rightPrimaryDown = inputReader.Right.detected
+            && inputReader.Right.primaryButton
+            && !previousRightPrimaryButton;
+        bool rightSecondaryDown = inputReader.Right.detected
+            && inputReader.Right.secondaryButton
+            && !previousRightSecondaryButton;
+        bool rightTriggerDown = inputReader.Right.detected
+            && inputReader.Right.triggerButton
+            && !previousRightTriggerButton;
+
+        previousLeftMenuButton = inputReader.Left.detected && inputReader.Left.menuButton;
+        previousRightPrimaryButton = inputReader.Right.detected && inputReader.Right.primaryButton;
+        previousRightSecondaryButton = inputReader.Right.detected && inputReader.Right.secondaryButton;
+        previousRightTriggerButton = inputReader.Right.detected && inputReader.Right.triggerButton;
+
+        if (leftMenuDown)
+        {
+            OpenSettings();
+        }
+
+        if (!settingsOpen)
+        {
+            settingsDialog.SetVisible(false);
+            return;
+        }
+
+        if (rightPrimaryDown)
+        {
+            selectedSettingsOption = (selectedSettingsOption + 1) % SettingsOptionCount;
+        }
+
+        if (rightSecondaryDown)
+        {
+            selectedSettingsOption = (selectedSettingsOption + SettingsOptionCount - 1) % SettingsOptionCount;
+        }
+
+        if (rightTriggerDown)
+        {
+            ActivateSelectedSettingsOption();
+        }
+
+        if (adjustingStreamPanel)
+        {
+            AdjustStreamPanel();
+        }
+
+        UpdateSettingsDialogText();
+    }
+
+    private void OpenSettings()
+    {
+        EnsureStreamPanel();
+
+        if (!settingsOpen)
+        {
+            originalPanelLocalPosition = streamPanel != null
+                ? streamPanel.GetLocalPosition()
+                : Vector3.zero;
+            selectedSettingsOption = AdjustPanelOption;
+            adjustingStreamPanel = false;
+        }
+
+        settingsOpen = true;
+        rosTopicEnable = false;
+        settingsDialog.SetVisible(true);
+        UpdateSettingsDialogText();
+    }
+
+    private void ActivateSelectedSettingsOption()
+    {
+        if (selectedSettingsOption == AdjustPanelOption)
+        {
+            adjustingStreamPanel = !adjustingStreamPanel;
+            return;
+        }
+
+        if (selectedSettingsOption == SaveOption)
+        {
+            CloseSettings(true);
+            return;
+        }
+
+        if (selectedSettingsOption == DiscardOption)
+        {
+            CloseSettings(false);
+        }
+    }
+
+    private void CloseSettings(bool saveChanges)
+    {
+        if (!saveChanges && streamPanel != null)
+        {
+            streamPanel.SetLocalPosition(originalPanelLocalPosition);
+        }
+        else if (saveChanges && streamPanel != null)
+        {
+            streamPanel.SaveLocalPosition();
+        }
+
+        settingsOpen = false;
+        adjustingStreamPanel = false;
+        rosTopicEnable = true;
+        settingsDialog.SetVisible(false);
+    }
+
+    private void AdjustStreamPanel()
+    {
+        EnsureStreamPanel();
+        if (streamPanel == null)
+        {
+            return;
+        }
+
+        Vector3 position = streamPanel.GetLocalPosition();
+        Vector2 leftStick = inputReader.Left.detected ? inputReader.Left.joystick : Vector2.zero;
+        Vector2 rightStick = inputReader.Right.detected ? inputReader.Right.joystick : Vector2.zero;
+        float step = panelAdjustSpeedMetersPerSecond * Time.deltaTime;
+
+        position.x += leftStick.x * step;
+        position.z += leftStick.y * step;
+        position.y += rightStick.y * step;
+        position.z = Mathf.Clamp(position.z, panelMinDistanceMeters, panelMaxDistanceMeters);
+
+        streamPanel.SetLocalPosition(position);
+    }
+
+    private void UpdateSettingsDialogText()
+    {
+        EnsureStreamPanel();
+        Vector3 panelPosition = streamPanel != null ? streamPanel.GetLocalPosition() : Vector3.zero;
+        settingsDialog.SetVisible(true);
+        settingsDialog.SetText(
+            "Settings\n"
+            + "ROS Topic Enable: " + (rosTopicEnable ? "Enabled" : "Disabled") + "\n\n"
+            + OptionLine(AdjustPanelOption, "Adjust Floating Stream Panel" + (adjustingStreamPanel ? "  ON" : "")) + "\n"
+            + OptionLine(SaveOption, "Save") + "\n"
+            + OptionLine(DiscardOption, "Discard") + "\n\n"
+            + "Panel x " + F(panelPosition.x)
+            + "  y " + F(panelPosition.y)
+            + "  z " + F(panelPosition.z));
+    }
+
+    private string OptionLine(int option, string label)
+    {
+        return selectedSettingsOption == option ? "> " + label : "  " + label;
+    }
+
+    private void EnsureStreamPanel()
+    {
+        if (streamPanel != null)
+        {
+            return;
+        }
+
+        streamPanel = FindAnyObjectByType<StreamPanelManager>();
     }
 
     private static string Vec2(Vector2 value)

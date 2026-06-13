@@ -29,11 +29,13 @@ public class QuestHud : MonoBehaviour
         bool hasRelativePose,
         Vector3 relativePosition,
         float trigger,
-        bool recording)
+        bool recording,
+        bool rosTopicEnable)
     {
         EnsureTextMesh();
         textMesh.color = tcpConnected ? textColor : disconnectedColor;
-        textMesh.text = tcpConnected ? "TCP OK" : "TCP OFF";
+        string rosState = rosTopicEnable ? "ROS ON" : "ROS OFF";
+        textMesh.text = (tcpConnected ? "TCP OK" : "TCP OFF") + " | " + rosState;
     }
 
     private void EnsureTextMesh()

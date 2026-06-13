@@ -13,8 +13,10 @@ public class StreamPanelManager : MonoBehaviour
     public float statusBarPaddingMeters = 0.04f;
     public Color placeholderColor = new Color(0.04f, 0.04f, 0.04f, 1.0f);
     public Color statusBarColor = new Color(0.015f, 0.018f, 0.022f, 1.0f);
+    public bool loadSavedLocalPosition = true;
 
     private const string BootstrapName = "Quest2Skill WebRTC Stream Layer";
+    private const string SavedPositionPrefix = "Quest2Skill.StreamPanel.LocalPosition.";
 
     private WebRTCStreamReceiver receiver;
     private Renderer panelRenderer;
@@ -48,6 +50,7 @@ public class StreamPanelManager : MonoBehaviour
             receiver = gameObject.AddComponent<WebRTCStreamReceiver>();
         }
 
+        LoadSavedLocalPosition();
         EnsurePanel();
         EnsureStatusBar();
     }
@@ -173,6 +176,37 @@ public class StreamPanelManager : MonoBehaviour
         transform.localPosition = localPosition;
         transform.localRotation = Quaternion.identity;
         transform.localScale = Vector3.one;
+    }
+
+    public Vector3 GetLocalPosition()
+    {
+        return localPosition;
+    }
+
+    public void SetLocalPosition(Vector3 value)
+    {
+        localPosition = value;
+    }
+
+    public void SaveLocalPosition()
+    {
+        PlayerPrefs.SetFloat(SavedPositionPrefix + "x", localPosition.x);
+        PlayerPrefs.SetFloat(SavedPositionPrefix + "y", localPosition.y);
+        PlayerPrefs.SetFloat(SavedPositionPrefix + "z", localPosition.z);
+        PlayerPrefs.Save();
+    }
+
+    private void LoadSavedLocalPosition()
+    {
+        if (!loadSavedLocalPosition || !PlayerPrefs.HasKey(SavedPositionPrefix + "z"))
+        {
+            return;
+        }
+
+        localPosition = new Vector3(
+            PlayerPrefs.GetFloat(SavedPositionPrefix + "x", localPosition.x),
+            PlayerPrefs.GetFloat(SavedPositionPrefix + "y", localPosition.y),
+            PlayerPrefs.GetFloat(SavedPositionPrefix + "z", localPosition.z));
     }
 
     private void ApplyReceiverTexture()
