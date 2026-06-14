@@ -4,7 +4,7 @@ using UnityEngine.XR;
 
 public class QuestHapticCommandReceiver : MonoBehaviour
 {
-    public float fallbackAmplitude = 0.25f;
+    public float fallbackAmplitude = 0.70f;
     public float fallbackDurationSeconds = 0.035f;
 
     private QuestTcpClient tcpClient;

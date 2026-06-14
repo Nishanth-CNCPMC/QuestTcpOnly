@@ -3,7 +3,7 @@ using UnityEngine.XR;
 
 public class QuestHaptics : MonoBehaviour
 {
-    public float defaultAmplitude = 0.25f;
+    public float defaultAmplitude = 0.70f;
     public float defaultDuration = 0.035f;
 
     public void Pulse(InputDevice device)
